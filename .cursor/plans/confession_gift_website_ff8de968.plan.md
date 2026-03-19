@@ -1,0 +1,288 @@
+---
+name: Confession Gift Website
+overview: 从零搭建一个基于 Next.js App Router 的告白礼物网站，包含入口页、爱心粒子 Canvas 动画、认识天数计算、回忆时间线、信件页、提问页和在一起计时页，移动端优先，可部署到 Vercel。
+todos:
+  - id: env-setup
+    content: 安装 Node.js，初始化 Next.js 项目，安装 framer-motion 等依赖
+    status: pending
+  - id: global-setup
+    content: 配置全局布局 (layout.tsx)、字体、globals.css、Tailwind 主题色、Background 组件
+    status: pending
+  - id: data-types
+    content: 创建 types/index.ts、data/config.ts、data/story.ts、data/letter.ts 配置文件
+    status: pending
+  - id: lib-utils
+    content: 实现 lib/date.ts 日期计算工具 和 lib/storage.ts 持久化封装（localStorage + 预留 Supabase）
+    status: pending
+  - id: entry-screen
+    content: 实现 EntryScreen 入口页组件：深色渐变背景、引导文案、仪式感按钮
+    status: pending
+  - id: heart-canvas
+    content: 实现 HeartCanvas 组件：Canvas 心形粒子动画 + 心跳缩放 + 点击炸开效果
+    status: pending
+  - id: days-counter
+    content: 实现 DaysCounter 组件：认识天数计算 + 数字滚动动画
+    status: pending
+  - id: story-timeline
+    content: 实现 StoryTimeline + StoryCard 组件：全屏 scroll-snap 时间线叙事 + 进入动画
+    status: pending
+  - id: letter-section
+    content: 实现 LetterSection 组件：信纸视觉效果 + 段落逐段淡入 + 信封展开动画
+    status: pending
+  - id: proposal-section
+    content: 实现 ProposalSection 组件：提问文案 + 我愿意/再看看按钮交互
+    status: pending
+  - id: love-timer
+    content: 实现 LoveTimer 组件 + /together 页面：实时计时器 + 持久化检测
+    status: pending
+  - id: main-page
+    content: 组装主页 page.tsx：状态机驱动各阶段切换，acceptedAt 检测逻辑
+    status: pending
+  - id: polish
+    content: 整体调优：动画节奏、移动端适配、性能优化、Safari 兼容性测试
+    status: pending
+isProject: false
+---
+
+# 告白礼物网站 - 完整实现方案
+
+## 0. 环境准备
+
+当前机器未检测到 Node.js，需要先安装：
+
+```bash
+# 推荐使用 fnm (Fast Node Manager)
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install 20
+fnm use 20
+```
+
+然后在 `/Users/zl5825/Desktop/love_xf` 下初始化 Next.js 项目：
+
+```bash
+npx create-next-app@latest . --typescript --tailwind --app --eslint --src-dir --import-alias "@/*"
+npm install framer-motion
+```
+
+---
+
+## 1. 页面结构与交互流转
+
+整个网站是一个 **单页应用**，通过状态切换和滚动驱动来推进叙事节奏，而不是路由跳转（避免 NFC 打开后的跳转割裂感）。唯一的例外是"在一起计时页"作为独立路由 `/together`，因为它需要在后续直接访问时独立展示。
+
+```mermaid
+flowchart TD
+    Entry["/ 入口页"] -->|点击按钮| HeartPhase["爱心粒子 Canvas"]
+    HeartPhase -->|点击爱心| ExplodePhase["粒子炸开 + 认识天数"]
+    ExplodePhase -->|自动过渡| Timeline["回忆时间线滚动叙事"]
+    Timeline -->|滚动到底| Letter["信件展开"]
+    Letter -->|阅读完毕| Proposal["最终提问"]
+    Proposal -->|点击我愿意| Timer["/together 计时页"]
+    Proposal -->|点击再看看| Letter
+
+    OpenSite["打开网站"] -->|已有 acceptedAt| Timer
+    OpenSite -->|无 acceptedAt| Entry
+```
+
+
+
+**状态流转枚举**（主页内）：
+
+- `intro` - 入口页
+- `heart` - 爱心粒子展示
+- `explode` - 粒子炸开 + 天数
+- `story` - 时间线 + 信件 + 提问（进入可滚动的长页面区域）
+
+---
+
+## 2. 目录结构
+
+```
+src/
+├── app/
+│   ├── layout.tsx              # 根布局，全局字体/meta
+│   ├── page.tsx                # 主页（状态机驱动各阶段）
+│   ├── together/
+│   │   └── page.tsx            # 在一起计时页（独立路由）
+│   └── globals.css             # Tailwind + 全局样式
+├── components/
+│   ├── EntryScreen.tsx         # 入口页 UI
+│   ├── HeartCanvas.tsx         # Canvas 爱心粒子 + 心跳 + 炸开
+│   ├── DaysCounter.tsx         # 认识天数展示（带数字滚动动画）
+│   ├── StoryTimeline.tsx       # 回忆时间线容器
+│   ├── StoryCard.tsx           # 单个时间线节点卡片
+│   ├── LetterSection.tsx       # 信件区域（信封展开 + 分段显示）
+│   ├── ProposalSection.tsx     # 最终提问 + 按钮
+│   ├── LoveTimer.tsx           # 在一起计时器组件
+│   └── Background.tsx          # 全局背景氛围层
+├── lib/
+│   ├── date.ts                 # 日期计算工具函数
+│   └── storage.ts              # localStorage 封装（预留 Supabase 接口）
+├── data/
+│   ├── story.ts                # 时间线节点数据
+│   ├── letter.ts               # 信件正文数据
+│   └── config.ts               # 全局配置（日期、文案等）
+└── types/
+    └── index.ts                # TypeScript 类型定义
+```
+
+---
+
+## 3. 数据结构设计
+
+### `data/config.ts` - 全局配置
+
+```typescript
+export const siteConfig = {
+  metDate: "2024-10-01",
+  entryTitle: "打开属于我们的故事",
+  entryButton: "开始",
+  proposalQuestion: "你愿意和我一起，把以后的时间也写进去吗？",
+  acceptButton: "我愿意",
+  declineButton: "再看看",
+  togetherTitle: "我们在一起",
+  togetherSubtitle: "每一秒，都是我想和你一起度过的",
+};
+```
+
+### `data/story.ts` - 时间线节点
+
+```typescript
+export interface StoryNode {
+  id: string;
+  title: string;
+  date?: string;
+  description: string;
+  image?: string; // 图片路径，先用占位
+}
+
+export const storyNodes: StoryNode[] = [
+  { id: "first-meet", title: "初次相遇", date: "2024-10-01", description: "...", image: "/images/placeholder-1.jpg" },
+  // 4~6 个节点
+];
+```
+
+### `data/letter.ts` - 信件内容
+
+```typescript
+export const letterContent = {
+  greeting: "写给你的信",
+  paragraphs: ["第一段...", "第二段...", "第三段..."],
+  closing: "永远属于你的人",
+  signature: "",
+};
+```
+
+### `lib/storage.ts` - 持久化封装
+
+```typescript
+interface StorageProvider {
+  getAcceptedAt(): Promise<string | null>;
+  setAcceptedAt(timestamp: string): Promise<void>;
+}
+
+// 当前实现：localStorage
+class LocalStorageProvider implements StorageProvider { ... }
+
+// 未来实现：Supabase
+// class SupabaseProvider implements StorageProvider { ... }
+
+// 统一导出
+export const storage: StorageProvider = new LocalStorageProvider();
+```
+
+---
+
+## 4. 核心技术实现思路
+
+### 4.1 Canvas 爱心粒子
+
+- 使用数学心形线参数方程 `x = 16sin³(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)` 生成粒子目标位置
+- 约 200~300 个粒子，每个粒子有 `x, y, targetX, targetY, size, opacity, color` 属性
+- **心跳效果**：通过周期性缩放因子 `1 + 0.03 * sin(time * 2)` 作用于所有粒子的 target 位置
+- **炸开效果**：点击时给每个粒子一个随机方向的速度向量，同时逐渐降低 opacity，300ms 后粒子消散
+- 粒子颜色使用暖色调（玫瑰金 / 柔粉 / 暖白），不要纯红
+- Canvas 大小适配视口，使用 `devicePixelRatio` 保证清晰度
+- 使用 `requestAnimationFrame` 驱动，组件卸载时清理
+
+### 4.2 认识天数计数器
+
+- `lib/date.ts` 中用 `dayjs` 或原生 Date 计算天数差
+- 数字展示使用 Framer Motion 的 `useSpring` + `useTransform` 实现从 0 滚动到目标数字的动画
+- 数字过大时分组显示（如 "xxx 天"），保证移动端排版
+
+### 4.3 回忆时间线
+
+- 使用 CSS `scroll-snap-type: y mandatory` 实现全屏分页滚动
+- 每个 `StoryCard` 占满一屏 (`min-h-screen` 或 `h-dvh`)
+- 使用 Framer Motion 的 `useInView` 触发进入动画（fadeIn + translateY）
+- 图片使用 `next/image` 配合 `placeholder="blur"` 占位
+- 图片加入微视差：根据滚动偏移量做轻微 `translateY` 位移
+
+### 4.4 信件区域
+
+- 视觉上模拟信纸效果：半透明底色 + 细线边框 + 衬线字体
+- 使用 Framer Motion `staggerChildren` 让段落逐个淡入
+- 信件顶部有装饰性的信封翻开动画（CSS transform rotateX 从 180deg 到 0deg）
+- 字体使用系统衬线字体或 Google Fonts 的 `Noto Serif SC`（中文衬线）
+
+### 4.5 提问页与计时页
+
+- 提问页全屏居中，问题文案 + 两个按钮
+- "我愿意" 按钮点击后调用 `storage.setAcceptedAt(new Date().toISOString())`，然后 `router.push('/together')`
+- "再看看" 按钮平滑滚动回信件区域
+- 计时页使用 `setInterval(1000)` 每秒更新，计算 `days / hours / minutes / seconds`
+- 计时页独立路由，`/together` 页面 `useEffect` 中检查 `acceptedAt`，无数据时跳回主页
+
+### 4.6 背景氛围
+
+- 全局 `Background` 组件：深色径向渐变底色 (`#0a0a0f` → `#1a1020`)
+- 叠加极低透明度的噪点纹理（CSS background-image 用 inline SVG 或 tiny base64）
+- 可选：少量缓慢漂浮的光斑粒子（用 CSS animation 而非 Canvas，避免性能冲突）
+
+---
+
+## 5. 性能策略
+
+- 入口页零重动画，仅简单渐变 + 按钮呼吸光
+- `HeartCanvas` 使用 `dynamic(() => import(...), { ssr: false })` 懒加载，不在服务端渲染
+- 时间线图片使用 `next/image` 的 `loading="lazy"` + `sizes` 响应式
+- Canvas 在粒子炸开完成后销毁，释放内存
+- 计时页轻量，无重动画
+- 全局避免引入过大依赖，framer-motion 通过 tree-shaking 仅引入使用的模块
+
+---
+
+## 6. 移动端适配要点
+
+- 使用 `dvh`（dynamic viewport height）替代 `vh`，解决 iOS Safari 地址栏问题
+- 按钮最小 44x44px 点击区域
+- 字体使用 `clamp()` 响应式缩放
+- 滚动使用 `-webkit-overflow-scrolling: touch`
+- meta viewport 设置 `viewport-fit=cover` 适配刘海屏
+- 测试 `safe-area-inset` padding
+
+---
+
+## 7. 部署方案
+
+- 项目根目录已有 git，直接推送到 GitHub
+- 在 Vercel 中 Import 该 GitHub 仓库
+- Framework Preset 自动检测为 Next.js
+- 零配置部署，生成 URL 即可写入 NFC 卡片
+- 后续绑定自定义域名在 Vercel Dashboard 设置
+
+---
+
+## 8. 后续修改指南（核心配置文件）
+
+
+| 要修改的内容      | 文件路径                 |
+| ----------- | -------------------- |
+| 认识日期、页面文案   | `src/data/config.ts` |
+| 时间线节点       | `src/data/story.ts`  |
+| 信件正文        | `src/data/letter.ts` |
+| 占位图片        | `public/images/` 目录  |
+| 切换 Supabase | `src/lib/storage.ts` |
+
+
