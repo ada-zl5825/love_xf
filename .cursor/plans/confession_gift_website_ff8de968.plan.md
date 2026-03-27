@@ -13,10 +13,10 @@ todos:
     status: completed
   - id: lib-utils
     content: 实现 lib/date.ts 日期计算工具 和 lib/storage.ts 持久化封装（localStorage + 预留 Supabase）
-    status: pending
+    status: completed
   - id: entry-screen
     content: 实现 EntryScreen 入口页组件：深色渐变背景、引导文案、仪式感按钮
-    status: pending
+    status: completed
   - id: heart-canvas
     content: 实现 HeartCanvas 组件：Canvas 心形粒子动画 + 心跳缩放 + 点击炸开效果
     status: pending
