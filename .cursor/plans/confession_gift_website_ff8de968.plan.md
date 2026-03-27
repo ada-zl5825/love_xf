@@ -19,6 +19,9 @@ todos:
     status: completed
   - id: heart-canvas
     content: 实现 HeartCanvas 组件：Canvas 心形粒子动画 + 心跳缩放 + 点击炸开效果
+    status: completed
+  - id: heart-canvas-threejs
+    content: Three.js 重写 HeartCanvas：GPU 加速 3D 粒子爱心（3000颗）+ 自定义 GLSL 着色器 + Bloom 辉光后处理
     status: pending
   - id: days-counter
     content: 实现 DaysCounter 组件：认识天数计算 + 数字滚动动画
@@ -61,7 +64,8 @@ fnm use 20
 
 ```bash
 npx create-next-app@latest . --typescript --tailwind --app --eslint --src-dir --import-alias "@/*"
-npm install framer-motion
+npm install framer-motion three
+npm install -D @types/three
 ```
 
 ---
@@ -107,7 +111,7 @@ src/
 │   └── globals.css             # Tailwind + 全局样式
 ├── components/
 │   ├── EntryScreen.tsx         # 入口页 UI
-│   ├── HeartCanvas.tsx         # Canvas 爱心粒子 + 心跳 + 炸开
+│   ├── HeartCanvas.tsx         # Three.js 3D 粒子爱心 + Bloom 辉光 + 心跳 + 炸开
 │   ├── DaysCounter.tsx         # 认识天数展示（带数字滚动动画）
 │   ├── StoryTimeline.tsx       # 回忆时间线容器
 │   ├── StoryCard.tsx           # 单个时间线节点卡片
@@ -195,15 +199,45 @@ export const storage: StorageProvider = new LocalStorageProvider();
 
 ## 4. 核心技术实现思路
 
-### 4.1 Canvas 爱心粒子
+### 4.1 Three.js 3D 粒子爱心
 
-- 使用数学心形线参数方程 `x = 16sin³(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)` 生成粒子目标位置
-- 约 200~300 个粒子，每个粒子有 `x, y, targetX, targetY, size, opacity, color` 属性
-- **心跳效果**：通过周期性缩放因子 `1 + 0.03 * sin(time * 2)` 作用于所有粒子的 target 位置
-- **炸开效果**：点击时给每个粒子一个随机方向的速度向量，同时逐渐降低 opacity，300ms 后粒子消散
-- 粒子颜色使用暖色调（玫瑰金 / 柔粉 / 暖白），不要纯红
-- Canvas 大小适配视口，使用 `devicePixelRatio` 保证清晰度
-- 使用 `requestAnimationFrame` 驱动，组件卸载时清理
+使用原生 Three.js（非 React Three Fiber）实现真正的 GPU 加速 3D 粒子系统。
+
+**渲染管线**：
+
+- `THREE.WebGLRenderer`（alpha 透明背景，融合页面 Background）
+- `THREE.PerspectiveCamera`（FOV 60，静止）
+- `THREE.Points` + `THREE.BufferGeometry`（单次 draw call 渲染全部粒子）
+- `THREE.ShaderMaterial`（自定义 GLSL 着色器 + AdditiveBlending）
+- `EffectComposer` + `RenderPass` + `UnrealBloomPass`（Bloom 辉光后处理）
+
+**3D 心形生成**：
+
+- 使用参数方程 `x = 16sin³(t), y = -(13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t))` 生成 2D 轮廓
+- 弧长参数化采样保证均匀分布
+- Z 轴深度使用半球截面 `z_max = THICKNESS * sqrt(1 - spread²)` 生成 3D 体积
+- ~3000 颗粒子：30% 表面（定义轮廓）+ 70% 填充（饱满内部）
+
+**自定义 GLSL 着色器**：
+
+- Vertex Shader：`gl_PointSize` 基于距离衰减
+- Fragment Shader：`smoothstep` 柔和边缘圆形点精灵
+- `AdditiveBlending` + `depthWrite: false` 实现粒子叠加辉光
+
+**Bloom 后处理**：
+
+- `UnrealBloomPass`（strength ~0.8, radius ~0.4, threshold ~0.2）
+- 让每颗粒子散发柔和光晕，视觉质感远超手动画圆
+
+**三阶段动画**（接口不变 `{ onExplode: () => void }`）：
+
+- **汇聚**：粒子从随机 3D 位置 lerp 到心形目标，stagger 延迟 + easeOutCubic
+- **心跳**：缩放因子 `1 + 0.04 * sin(t)` 作用于所有粒子，整体绕 Y 轴缓慢旋转（~15s/圈）
+- **爆炸**：点击后粒子获得 3D 外飞速度，摩擦 + 重力 + 渐隐，完成后调用 `onExplode()`
+- 动画通过 JS 每帧更新 BufferAttribute 实现，GPU 负责渲染
+
+**粒子颜色**：暖色调（玫瑰金 / 柔粉 / 暖白），不要纯红
+**卸载清理**：renderer.dispose(), geometry.dispose(), material.dispose(), composer 清理
 
 ### 4.2 认识天数计数器
 
@@ -246,10 +280,12 @@ export const storage: StorageProvider = new LocalStorageProvider();
 
 - 入口页零重动画，仅简单渐变 + 按钮呼吸光
 - `HeartCanvas` 使用 `dynamic(() => import(...), { ssr: false })` 懒加载，不在服务端渲染
+- HeartCanvas 使用 Three.js GPU 粒子系统：3000 颗粒子仅 1 次 draw call，远优于 Canvas 2D 逐粒子绘制
+- Bloom 后处理增加 2-3 次全屏 pass，中端手机仍可 60fps；设置 `powerPreference: "high-performance"`
+- 粒子炸开完成后完整清理 WebGLRenderer / Scene / Geometry / Material，释放 GPU 内存
 - 时间线图片使用 `next/image` 的 `loading="lazy"` + `sizes` 响应式
-- Canvas 在粒子炸开完成后销毁，释放内存
 - 计时页轻量，无重动画
-- 全局避免引入过大依赖，framer-motion 通过 tree-shaking 仅引入使用的模块
+- `three` 通过 tree-shaking 仅打包使用的模块（Points, ShaderMaterial, EffectComposer 等）
 
 ---
 
