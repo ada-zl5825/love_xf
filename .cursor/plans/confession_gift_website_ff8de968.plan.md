@@ -31,7 +31,7 @@ todos:
     status: completed
   - id: letter-section
     content: 实现 LetterSection 组件：信纸视觉效果 + 段落逐段淡入 + 信封展开动画
-    status: pending
+    status: completed
   - id: proposal-section
     content: 实现 ProposalSection 组件：提问文案 + 我愿意/再看看按钮交互
     status: pending

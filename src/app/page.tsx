@@ -6,6 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import type { Phase } from "@/types";
 import EntryScreen from "@/components/EntryScreen";
 import StoryTimeline from "@/components/StoryTimeline";
+import LetterSection from "@/components/LetterSection";
 
 const HeartCanvas = dynamic(() => import("@/components/HeartCanvas"), {
   ssr: false,
@@ -25,7 +26,11 @@ export default function Home() {
           <HeartCanvas key="heart" onComplete={() => setPhase("story")} />
         )}
 
-        {phase === "story" && <StoryTimeline key="story" />}
+        {phase === "story" && (
+          <StoryTimeline key="story">
+            <LetterSection />
+          </StoryTimeline>
+        )}
       </AnimatePresence>
     </div>
   );

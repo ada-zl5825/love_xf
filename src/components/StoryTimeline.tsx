@@ -5,7 +5,11 @@ import { motion } from "framer-motion";
 import { storyNodes } from "@/data/story";
 import StoryCard from "./StoryCard";
 
-export default function StoryTimeline() {
+export default function StoryTimeline({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -64,6 +68,7 @@ export default function StoryTimeline() {
             total={storyNodes.length}
           />
         ))}
+        {children}
       </div>
     </motion.div>
   );

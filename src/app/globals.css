@@ -57,6 +57,21 @@ body {
   50% { opacity: 0.8; transform: scale(1.15); }
 }
 
+.letter-paper {
+  background:
+    repeating-linear-gradient(
+      transparent,
+      transparent 2rem,
+      rgba(183, 110, 121, 0.03) 2rem,
+      rgba(183, 110, 121, 0.03) calc(2rem + 1px)
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(245, 240, 235, 0.04),
+      rgba(245, 240, 235, 0.02)
+    );
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
