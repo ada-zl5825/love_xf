@@ -7,9 +7,11 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { daysBetween } from "@/lib/date";
+import { siteConfig } from "@/data/config";
 
 interface HeartCanvasProps {
-  onExplode: () => void;
+  onComplete: () => void;
 }
 
 interface PState {
@@ -26,6 +28,13 @@ interface PState {
   opacity: number;
   maxOpacity: number;
   delay: number;
+  tx: number;
+  ty: number;
+  tz: number;
+  rx: number;
+  ry: number;
+  rz: number;
+  reformDelay: number;
 }
 
 const COUNT = 3000;
@@ -33,6 +42,12 @@ const EDGE_COUNT = Math.round(COUNT * 0.3);
 const ASSEMBLE_MS = 2200;
 const THICKNESS = 5;
 const ROT_SPEED = 0.0004;
+const EXPLODE_TO_REFORM_MS = 900;
+const REFORM_MS = 1800;
+const REFORM_STAGGER = 500;
+const HOLD_MS = 2500;
+const FADE_MS = 800;
+const TEXT_WORLD_WIDTH = 28;
 
 const PALETTE: [number, number, number][] = [
   [183 / 255, 110 / 255, 121 / 255],
@@ -92,6 +107,72 @@ function easeOutCubic(x: number) {
   return 1 - (1 - x) ** 3;
 }
 
+function sampleTextPositions(
+  text: string,
+  count: number,
+  worldWidth: number,
+): { x: number; y: number }[] {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Array.from({ length: count }, () => ({ x: 0, y: 0 }));
+
+  const fontSize = 160;
+  canvas.width = 1;
+  canvas.height = 1;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const measured = ctx.measureText(text).width;
+
+  const pad = 40;
+  const W = Math.ceil(measured + pad * 2);
+  const H = Math.ceil(fontSize * 1.8);
+  canvas.width = W;
+  canvas.height = H;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, W / 2, H / 2);
+
+  const data = ctx.getImageData(0, 0, W, H).data;
+  const pts: { x: number; y: number }[] = [];
+  let minX = W,
+    maxX = 0,
+    minY = H,
+    maxY = 0;
+
+  for (let y = 0; y < H; y += 2) {
+    for (let x = 0; x < W; x += 2) {
+      if (data[(y * W + x) * 4 + 3] > 128) {
+        pts.push({ x, y });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (pts.length === 0) {
+    return Array.from({ length: count }, () => ({ x: 0, y: 0 }));
+  }
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const tw = maxX - minX || 1;
+  const scale = worldWidth / tw;
+
+  const result: { x: number; y: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const p = pts[Math.floor(Math.random() * pts.length)];
+    result.push({
+      x: (p.x - cx) * scale,
+      y: -(p.y - cy) * scale,
+    });
+  }
+  return result;
+}
+
 const VERT = /* glsl */ `
 attribute float aSize;
 attribute float aOpacity;
@@ -121,10 +202,11 @@ void main() {
 }
 `;
 
-export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
+export default function HeartCanvas({ onComplete }: HeartCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cbRef = useRef(onExplode);
-  cbRef.current = onExplode;
+  const labelRef = useRef<HTMLDivElement>(null);
+  const cbRef = useRef(onComplete);
+  cbRef.current = onComplete;
 
   const S = useRef({
     ps: [] as PState[],
@@ -134,6 +216,11 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
     explodeT: 0,
     ready: false,
     rotY: 0,
+    reforming: false,
+    reformT: 0,
+    holdStart: 0,
+    fading: false,
+    fadeT: 0,
   });
 
   useEffect(() => {
@@ -219,6 +306,13 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
           ? 0.55 + Math.random() * 0.45
           : 0.3 + Math.random() * 0.5,
         delay: Math.random() * 700,
+        tx: 0,
+        ty: 0,
+        tz: 0,
+        rx: 0,
+        ry: 0,
+        rz: 0,
+        reformDelay: 0,
       };
       particles.push(p);
 
@@ -260,22 +354,99 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
     function frame() {
       const now = performance.now();
       const elapsed = now - st.t0;
-      const elt = st.exploding ? now - st.explodeT : 0;
-      // ~88 BPM heartbeat with sharp pulse (心动节奏)
-      const BEAT_MS = 682;
-      const beatPhase = (elapsed % BEAT_MS) / BEAT_MS;
-      const beatPulse = Math.pow(Math.sin(beatPhase * Math.PI), 4);
-      const beat = st.exploding ? 1 : 1 + 0.055 * beatPulse;
-
-      let assembled = 0;
-      let anyVisible = false;
       const pos = posAttr.array as Float32Array;
       const op = opAttr.array as Float32Array;
 
-      for (let i = 0; i < COUNT; i++) {
-        const p = particles[i];
+      if (st.fading) {
+        // Phase 4 — fade out text, then signal completion
+        const fp = Math.min(1, (now - st.fadeT) / FADE_MS);
+        for (let i = 0; i < COUNT; i++) {
+          const p = particles[i];
+          const wSeed = p.delay * 9;
+          const driftX = Math.sin(elapsed * 0.0012 + wSeed) * 0.3;
+          const driftY = Math.cos(elapsed * 0.001 + wSeed * 1.3) * 0.3;
+          const driftZ = Math.sin(elapsed * 0.0009 + wSeed * 0.7) * 0.2;
+          const tw =
+            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
 
-        if (st.exploding) {
+          const i3 = i * 3;
+          pos[i3] = p.tx + driftX;
+          pos[i3 + 1] = p.ty + driftY;
+          pos[i3 + 2] = p.tz + driftZ;
+          op[i] =
+            p.maxOpacity * 0.85 * tw * (1 - easeOutCubic(fp));
+        }
+        posAttr.needsUpdate = true;
+        opAttr.needsUpdate = true;
+        if (labelRef.current) {
+          labelRef.current.style.opacity = String(
+            1 - easeOutCubic(fp),
+          );
+        }
+        if (fp >= 1) {
+          cbRef.current();
+          return;
+        }
+      } else if (st.reforming) {
+        // Phase 3 — particles converge to "XXX 天" text
+        const rt = now - st.reformT;
+        let allDone = true;
+
+        for (let i = 0; i < COUNT; i++) {
+          const p = particles[i];
+          const pe = Math.max(0, rt - p.reformDelay);
+          const prog = Math.min(1, pe / REFORM_MS);
+          const e = easeOutCubic(prog);
+
+          const wSeed = p.delay * 9;
+          const driftX = Math.sin(elapsed * 0.0012 + wSeed) * 0.3;
+          const driftY = Math.cos(elapsed * 0.001 + wSeed * 1.3) * 0.3;
+          const driftZ = Math.sin(elapsed * 0.0009 + wSeed * 0.7) * 0.2;
+          const driftScale = prog > 0.6 ? (prog - 0.6) / 0.4 : 0;
+
+          p.wx =
+            p.rx + (p.tx - p.rx) * e + driftX * driftScale;
+          p.wy =
+            p.ry + (p.ty - p.ry) * e + driftY * driftScale;
+          p.wz =
+            p.rz + (p.tz - p.rz) * e + driftZ * driftScale;
+
+          const tw =
+            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
+          p.opacity =
+            p.maxOpacity * 0.85 * Math.min(1, prog / 0.3) * tw;
+
+          if (prog < 1) allDone = false;
+
+          const i3 = i * 3;
+          pos[i3] = p.wx;
+          pos[i3 + 1] = p.wy;
+          pos[i3 + 2] = p.wz;
+          op[i] = p.opacity;
+        }
+
+        posAttr.needsUpdate = true;
+        opAttr.needsUpdate = true;
+
+        if (labelRef.current) {
+          labelRef.current.style.opacity = String(
+            Math.min(1, rt / 600),
+          );
+        }
+
+        points.rotation.y += (0 - points.rotation.y) * 0.08;
+
+        if (allDone && !st.holdStart) st.holdStart = now;
+        if (st.holdStart && now - st.holdStart >= HOLD_MS) {
+          st.fading = true;
+          st.fadeT = now;
+        }
+      } else if (st.exploding) {
+        // Phase 2 — particles fly outward, then transition to reform
+        const elt = now - st.explodeT;
+
+        for (let i = 0; i < COUNT; i++) {
+          const p = particles[i];
           p.wx += p.vx;
           p.wy += p.vy;
           p.wz += p.vz;
@@ -284,11 +455,62 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
           p.vz *= 0.984;
           p.vy -= 0.015;
 
-          p.opacity =
-            elt < 120
-              ? Math.min(1, p.maxOpacity * (1.3 - elt / 400))
-              : p.maxOpacity * Math.max(0, 1 - (elt - 120) / 2000);
-        } else {
+          p.opacity = p.maxOpacity * Math.max(0.15, 1 - elt / 2500);
+
+          const i3 = i * 3;
+          pos[i3] = p.wx;
+          pos[i3 + 1] = p.wy;
+          pos[i3 + 2] = p.wz;
+          op[i] = p.opacity;
+        }
+
+        posAttr.needsUpdate = true;
+        opAttr.needsUpdate = true;
+
+        if (elt >= EXPLODE_TO_REFORM_MS) {
+          st.reforming = true;
+          st.reformT = now;
+
+          const cosR = Math.cos(points.rotation.y);
+          const sinR = Math.sin(points.rotation.y);
+          const days = daysBetween(siteConfig.metDate);
+          const targets = sampleTextPositions(
+            `${days}天`,
+            COUNT,
+            TEXT_WORLD_WIDTH,
+          );
+
+          for (let i = 0; i < COUNT; i++) {
+            const p = particles[i];
+            const wX = p.wx * cosR + p.wz * sinR;
+            const wZ = -p.wx * sinR + p.wz * cosR;
+            p.rx = wX;
+            p.ry = p.wy;
+            p.rz = wZ;
+            p.wx = wX;
+            p.wz = wZ;
+            p.tx = targets[i].x;
+            p.ty = targets[i].y - 2;
+            p.tz = (Math.random() - 0.5) * 0.8;
+            p.reformDelay = Math.random() * REFORM_STAGGER;
+            const i3 = i * 3;
+            pos[i3] = wX;
+            pos[i3 + 2] = wZ;
+          }
+          posAttr.needsUpdate = true;
+          points.rotation.y = 0;
+        }
+      } else {
+        // Phase 1 — assembly + heartbeat
+        const BEAT_MS = 682;
+        const beatPhase = (elapsed % BEAT_MS) / BEAT_MS;
+        const beatPulse = Math.pow(Math.sin(beatPhase * Math.PI), 4);
+        const beat = 1 + 0.055 * beatPulse;
+
+        let assembled = 0;
+
+        for (let i = 0; i < COUNT; i++) {
+          const p = particles[i];
           const pe = Math.max(0, elapsed - p.delay);
           const prog = Math.min(1, pe / ASSEMBLE_MS);
           const e = easeOutCubic(prog);
@@ -296,8 +518,10 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
           const l = 0.04 + e * 0.06;
           const wSeed = p.delay * 9;
           const driftX = Math.sin(elapsed * 0.0015 + wSeed) * 0.4;
-          const driftY = Math.cos(elapsed * 0.0013 + wSeed * 1.3) * 0.4;
-          const driftZ = Math.sin(elapsed * 0.0011 + wSeed * 0.7) * 0.3;
+          const driftY =
+            Math.cos(elapsed * 0.0013 + wSeed * 1.3) * 0.4;
+          const driftZ =
+            Math.sin(elapsed * 0.0011 + wSeed * 0.7) * 0.3;
           p.wx += (p.lx * beat + driftX - p.wx) * l;
           p.wy += (p.ly * beat + driftY - p.wy) * l;
           p.wz += (p.lz * beat + driftZ - p.wz) * l;
@@ -305,32 +529,27 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
           p.opacity = e * p.maxOpacity;
           if (prog >= 1) assembled++;
 
-          const tw = 0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
+          const tw =
+            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
           p.opacity *= tw;
+
+          const i3 = i * 3;
+          pos[i3] = p.wx;
+          pos[i3 + 1] = p.wy;
+          pos[i3 + 2] = p.wz;
+          op[i] = p.opacity;
         }
 
-        const i3 = i * 3;
-        pos[i3] = p.wx;
-        pos[i3 + 1] = p.wy;
-        pos[i3 + 2] = p.wz;
-        op[i] = p.opacity;
+        posAttr.needsUpdate = true;
+        opAttr.needsUpdate = true;
 
-        if (p.opacity >= 0.005) anyVisible = true;
-      }
-
-      posAttr.needsUpdate = true;
-      opAttr.needsUpdate = true;
-
-      if (!st.exploding) {
         st.rotY = elapsed * ROT_SPEED;
         st.ready = assembled > particles.length * 0.4;
-      } else if (!anyVisible || elt > 2500) {
-        cbRef.current();
-        return;
+        points.rotation.y = st.rotY;
       }
-      points.rotation.y = st.rotY;
 
-      if (composer) {
+      const useBloom = !st.reforming && !st.fading;
+      if (useBloom && composer) {
         try {
           composer.render();
         } catch {
@@ -375,7 +594,7 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
 
   const handleClick = useCallback(() => {
     const st = S.current;
-    if (st.exploding || !st.ready) return;
+    if (st.exploding || st.reforming || st.fading || !st.ready) return;
 
     st.exploding = true;
     st.explodeT = performance.now();
@@ -401,6 +620,19 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
       onClick={handleClick}
-    />
+    >
+      <div
+        ref={labelRef}
+        className="pointer-events-none absolute inset-x-0 z-20 text-center"
+        style={{ top: "27%", opacity: 0 }}
+      >
+        <p
+          className="text-xl font-light tracking-[0.15em] md:text-2xl"
+          style={{ color: "rgba(240, 198, 212, 0.85)" }}
+        >
+          这是我们认识的第
+        </p>
+      </div>
+    </motion.div>
   );
 }

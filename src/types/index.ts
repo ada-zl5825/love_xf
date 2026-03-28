@@ -1,4 +1,4 @@
-export type Phase = "intro" | "heart" | "explode" | "story";
+export type Phase = "intro" | "heart" | "story";
 
 export interface StoryNode {
   id: string;

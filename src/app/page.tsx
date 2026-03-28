@@ -21,16 +21,7 @@ export default function Home() {
         )}
 
         {phase === "heart" && (
-          <HeartCanvas key="heart" onExplode={() => setPhase("explode")} />
-        )}
-
-        {phase === "explode" && (
-          <div
-            key="explode"
-            className="flex min-h-dvh items-center justify-center"
-          >
-            <p className="text-warm-white/50">DaysCounter placeholder</p>
-          </div>
+          <HeartCanvas key="heart" onComplete={() => setPhase("story")} />
         )}
       </AnimatePresence>
     </div>

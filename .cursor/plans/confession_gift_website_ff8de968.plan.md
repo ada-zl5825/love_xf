@@ -24,8 +24,8 @@ todos:
     content: Three.js 重写 HeartCanvas：GPU 加速 3D 粒子爱心（3000颗）+ 自定义 GLSL 着色器 + Bloom 辉光后处理
     status: completed
   - id: days-counter
-    content: 实现 DaysCounter 组件：认识天数计算 + 数字滚动动画
-    status: pending
+    content: 实现粒子重组天数：爆炸后 3000 颗粒子重新聚合成"XXX 天"文字形态（隐藏 Canvas 采样文字像素 → 粒子 lerp 到文字目标位置），在 HeartCanvas 内完成，不需要单独组件
+    status: completed
   - id: story-timeline
     content: 实现 StoryTimeline + StoryCard 组件：全屏 scroll-snap 时间线叙事 + 进入动画
     status: pending
@@ -76,9 +76,10 @@ npm install -D @types/three
 
 ```mermaid
 flowchart TD
-    Entry["/ 入口页"] -->|点击按钮| HeartPhase["爱心粒子 Canvas"]
-    HeartPhase -->|点击爱心| ExplodePhase["粒子炸开 + 认识天数"]
-    ExplodePhase -->|自动过渡| Timeline["回忆时间线滚动叙事"]
+    Entry["/ 入口页"] -->|点击按钮| HeartPhase["3D 爱心粒子"]
+    HeartPhase -->|点击爱心| ExplodePhase["粒子炸开"]
+    ExplodePhase -->|粒子重组| DaysPhase["粒子聚合成 XXX 天"]
+    DaysPhase -->|自动过渡| Timeline["回忆时间线滚动叙事"]
     Timeline -->|滚动到底| Letter["信件展开"]
     Letter -->|阅读完毕| Proposal["最终提问"]
     Proposal -->|点击我愿意| Timer["/together 计时页"]
@@ -93,8 +94,7 @@ flowchart TD
 **状态流转枚举**（主页内）：
 
 - `intro` - 入口页
-- `heart` - 爱心粒子展示
-- `explode` - 粒子炸开 + 天数
+- `heart` - 3D 爱心粒子展示（含心跳 + 旋转 + 点击爆炸 + 粒子重组天数，全部在 HeartCanvas 内完成）
 - `story` - 时间线 + 信件 + 提问（进入可滚动的长页面区域）
 
 ---
@@ -111,8 +111,7 @@ src/
 │   └── globals.css             # Tailwind + 全局样式
 ├── components/
 │   ├── EntryScreen.tsx         # 入口页 UI
-│   ├── HeartCanvas.tsx         # Three.js 3D 粒子爱心 + Bloom 辉光 + 心跳 + 炸开
-│   ├── DaysCounter.tsx         # 认识天数展示（带数字滚动动画）
+│   ├── HeartCanvas.tsx         # Three.js 3D 粒子爱心 + 心跳 + 炸开 + 粒子重组天数（四阶段动画）
 │   ├── StoryTimeline.tsx       # 回忆时间线容器
 │   ├── StoryCard.tsx           # 单个时间线节点卡片
 │   ├── LetterSection.tsx       # 信件区域（信封展开 + 分段显示）
@@ -229,21 +228,35 @@ export const storage: StorageProvider = new LocalStorageProvider();
 - `UnrealBloomPass`（strength ~0.8, radius ~0.4, threshold ~0.2）
 - 让每颗粒子散发柔和光晕，视觉质感远超手动画圆
 
-**三阶段动画**（接口不变 `{ onExplode: () => void }`）：
+**四阶段动画**（接口 `{ onComplete: () => void }`，全部在同一个 Three.js 场景内完成）：
 
 - **汇聚**：粒子从随机 3D 位置 lerp 到心形目标，stagger 延迟 + easeOutCubic
-- **心跳**：缩放因子 `1 + 0.04 * sin(t)` 作用于所有粒子，整体绕 Y 轴缓慢旋转（~15s/圈）
-- **爆炸**：点击后粒子获得 3D 外飞速度，摩擦 + 重力 + 渐隐，完成后调用 `onExplode()`
+- **心跳**：~88 BPM 脉冲式心跳 + 粒子微游动 + 整体绕 Y 轴缓慢旋转
+- **爆炸**：点击后粒子获得 3D 外飞速度，摩擦 + 重力，短暂散开
+- **重组天数**：爆炸粒子重新聚合成 "XXX 天" 文字形态（技术方案见 4.2），停留 2-3 秒后调用 `onComplete()`
 - 动画通过 JS 每帧更新 BufferAttribute 实现，GPU 负责渲染
 
 **粒子颜色**：暖色调（玫瑰金 / 柔粉 / 暖白），不要纯红
 **卸载清理**：renderer.dispose(), geometry.dispose(), material.dispose(), composer 清理
 
-### 4.2 认识天数计数器
+### 4.2 粒子重组天数（HeartCanvas 第四阶段）
 
-- `lib/date.ts` 中用 `dayjs` 或原生 Date 计算天数差
-- 数字展示使用 Framer Motion 的 `useSpring` + `useTransform` 实现从 0 滚动到目标数字的动画
-- 数字过大时分组显示（如 "xxx 天"），保证移动端排版
+粒子从爆炸散开状态重新聚合成文字，全部在 HeartCanvas 的 Three.js 场景内完成，不需要单独的 DaysCounter 组件。
+
+**技术方案**：
+
+1. 使用隐藏的 `<canvas>` 2D 渲染文字 "XXX 天"（`lib/date.ts` 的 `daysBetween()` 计算天数）
+2. 读取该 canvas 的像素数据 `getImageData()`，收集所有不透明像素的 (x, y) 坐标
+3. 从中随机采样 3000 个坐标作为粒子的新目标位置（归一化到 Three.js 世界坐标）
+4. 爆炸阶段结束后，每颗粒子 lerp 到对应的文字目标位置（复用汇聚阶段的 easeOutCubic + stagger 延迟）
+5. 文字完全成型后停留 2-3 秒，然后调用 `onComplete()` 过渡到下一阶段
+
+**文字采样细节**：
+
+- 字体使用系统无衬线体，加粗，字号足够大以获取足够像素点（如 200px）
+- 采样时可按像素亮度加权，让笔画中心更密集、边缘更稀疏
+- 坐标映射：canvas 像素坐标 → 居中归一化 → 乘以世界空间缩放因子
+- 文字粒子布局为平面（z ≈ 0），面向摄像机
 
 ### 4.3 回忆时间线
 
