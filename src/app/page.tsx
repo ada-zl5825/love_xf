@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 import type { Phase } from "@/types";
 import EntryScreen from "@/components/EntryScreen";
+import StoryTimeline from "@/components/StoryTimeline";
 
 const HeartCanvas = dynamic(() => import("@/components/HeartCanvas"), {
   ssr: false,
@@ -23,6 +24,8 @@ export default function Home() {
         {phase === "heart" && (
           <HeartCanvas key="heart" onComplete={() => setPhase("story")} />
         )}
+
+        {phase === "story" && <StoryTimeline key="story" />}
       </AnimatePresence>
     </div>
   );

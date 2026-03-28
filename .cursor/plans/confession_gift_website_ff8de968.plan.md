@@ -28,7 +28,7 @@ todos:
     status: completed
   - id: story-timeline
     content: 实现 StoryTimeline + StoryCard 组件：全屏 scroll-snap 时间线叙事 + 进入动画
-    status: pending
+    status: completed
   - id: letter-section
     content: 实现 LetterSection 组件：信纸视觉效果 + 段落逐段淡入 + 信封展开动画
     status: pending
