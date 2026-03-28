@@ -37,7 +37,7 @@ todos:
     status: completed
   - id: love-timer
     content: 实现 LoveTimer 组件 + /together 页面：实时计时器 + 持久化检测
-    status: pending
+    status: completed
   - id: main-page
     content: 组装主页 page.tsx：状态机驱动各阶段切换，acceptedAt 检测逻辑
     status: pending
