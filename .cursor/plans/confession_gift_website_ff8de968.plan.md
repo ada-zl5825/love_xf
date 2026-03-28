@@ -38,8 +38,11 @@ todos:
   - id: love-timer
     content: 实现 LoveTimer 组件 + /together 页面：实时计时器 + 持久化检测
     status: completed
+  - id: preload-optimization
+    content: HeartCanvas 预加载优化：intro 阶段预挂载 + 分层渲染 + 暖机帧，消除 intro→heart 过渡卡顿
+    status: completed
   - id: main-page
-    content: 组装主页 page.tsx：状态机驱动各阶段切换，acceptedAt 检测逻辑
+    content: 组装主页 page.tsx：acceptedAt 检测逻辑（已有 acceptedAt 跳转 /together，无 acceptedAt 进入 intro）
     status: pending
   - id: polish
     content: 整体调优：动画节奏、移动端适配、性能优化、Safari 兼容性测试
@@ -93,9 +96,9 @@ flowchart TD
 
 **状态流转枚举**（主页内）：
 
-- `intro` - 入口页
-- `heart` - 3D 爱心粒子展示（含心跳 + 旋转 + 点击爆炸 + 粒子重组天数，全部在 HeartCanvas 内完成）
-- `story` - 时间线 + 信件 + 提问（进入可滚动的长页面区域）
+- `intro` - 入口页（EntryScreen z-20 覆盖在前，HeartCanvas 在后台预加载暖机）
+- `heart` - 3D 爱心粒子展示（EntryScreen 淡出，HeartCanvas 启动汇聚动画；含心跳 + 旋转 + 点击爆炸 + 粒子重组天数）
+- `story` - 时间线 + 信件 + 提问（HeartCanvas 卸载释放 GPU，进入可滚动的长页面区域）
 
 ---
 
@@ -228,7 +231,14 @@ export const storage: StorageProvider = new LocalStorageProvider();
 - `UnrealBloomPass`（strength ~0.8, radius ~0.4, threshold ~0.2）
 - 让每颗粒子散发柔和光晕，视觉质感远超手动画圆
 
-**四阶段动画**（接口 `{ onComplete: () => void }`，全部在同一个 Three.js 场景内完成）：
+**预加载机制**（接口 `{ started: boolean; onComplete: () => void }`）：
+
+- HeartCanvas 在 `intro` 阶段即挂载（`started=false`），Three.js 全套初始化在后台完成
+- `started=false` 时：动画循环仅做暖机渲染（粒子 opacity=0，canvas alpha 透明，不可见）
+- `started=true` 时：首帧设置 `t0 = performance.now()`，开始汇聚动画
+- 通过 `startedRef` 在 rAF 循环中读取 prop 值，避免 useEffect 依赖重建场景
+
+**四阶段动画**（全部在同一个 Three.js 场景内完成）：
 
 - **汇聚**：粒子从随机 3D 位置 lerp 到心形目标，stagger 延迟 + easeOutCubic
 - **心跳**：~88 BPM 脉冲式心跳 + 粒子微游动 + 整体绕 Y 轴缓慢旋转
@@ -291,11 +301,12 @@ export const storage: StorageProvider = new LocalStorageProvider();
 
 ## 5. 性能策略
 
-- 入口页零重动画，仅简单渐变 + 按钮呼吸光
-- `HeartCanvas` 使用 `dynamic(() => import(...), { ssr: false })` 懒加载，不在服务端渲染
+- **HeartCanvas 预加载**：intro 阶段即挂载 HeartCanvas（`started=false`），Three.js 初始化（Renderer/Shaders/Bloom/3000 粒子）与 EntryScreen 展示并行完成，用户点击"开始"时零初始化延迟
+- **分层渲染架构**：page.tsx 使用独立 `AnimatePresence` 层而非 `mode="wait"`，EntryScreen 淡出与 HeartCanvas 启动同时进行；z-index 分层（EntryScreen z-20 覆盖 HeartCanvas z-10）
+- `HeartCanvas` 使用 `dynamic(() => import(...), { ssr: false })` 避免 SSR，模块在页面加载时即开始下载
 - HeartCanvas 使用 Three.js GPU 粒子系统：3000 颗粒子仅 1 次 draw call，远优于 Canvas 2D 逐粒子绘制
 - Bloom 后处理增加 2-3 次全屏 pass，中端手机仍可 60fps；设置 `powerPreference: "high-performance"`
-- 粒子炸开完成后完整清理 WebGLRenderer / Scene / Geometry / Material，释放 GPU 内存
+- `story` 阶段卸载 HeartCanvas，完整清理 WebGLRenderer / Scene / Geometry / Material，释放 GPU 内存
 - 时间线图片使用 `next/image` 的 `loading="lazy"` + `sizes` 响应式
 - 计时页轻量，无重动画
 - `three` 通过 tree-shaking 仅打包使用的模块（Points, ShaderMaterial, EffectComposer 等）
