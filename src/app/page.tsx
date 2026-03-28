@@ -7,6 +7,7 @@ import type { Phase } from "@/types";
 import EntryScreen from "@/components/EntryScreen";
 import StoryTimeline from "@/components/StoryTimeline";
 import LetterSection from "@/components/LetterSection";
+import ProposalSection from "@/components/ProposalSection";
 
 const HeartCanvas = dynamic(() => import("@/components/HeartCanvas"), {
   ssr: false,
@@ -29,6 +30,7 @@ export default function Home() {
         {phase === "story" && (
           <StoryTimeline key="story">
             <LetterSection />
+            <ProposalSection />
           </StoryTimeline>
         )}
       </AnimatePresence>

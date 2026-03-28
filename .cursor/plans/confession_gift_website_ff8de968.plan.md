@@ -34,7 +34,7 @@ todos:
     status: completed
   - id: proposal-section
     content: 实现 ProposalSection 组件：提问文案 + 我愿意/再看看按钮交互
-    status: pending
+    status: completed
   - id: love-timer
     content: 实现 LoveTimer 组件 + /together 页面：实时计时器 + 持久化检测
     status: pending
