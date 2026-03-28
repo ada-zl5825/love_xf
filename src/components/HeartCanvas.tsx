@@ -148,7 +148,6 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
-      powerPreference: "high-performance",
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
@@ -166,17 +165,19 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
     // --- Scene ---
     const scene = new THREE.Scene();
 
-    // --- Post-processing ---
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(w, h),
-      0.3,
-      0.15,
-      0.55,
-    );
-    composer.addPass(bloomPass);
-    composer.addPass(new OutputPass());
+    // --- Post-processing (with Safari/iOS fallback) ---
+    let composer: EffectComposer | null = null;
+    try {
+      const c = new EffectComposer(renderer);
+      c.addPass(new RenderPass(scene, camera));
+      c.addPass(
+        new UnrealBloomPass(new THREE.Vector2(w, h), 0.3, 0.15, 0.55),
+      );
+      c.addPass(new OutputPass());
+      composer = c;
+    } catch {
+      composer = null;
+    }
 
     // --- Generate particles ---
     const edgeTs = arcLengthSample(EDGE_COUNT);
@@ -329,7 +330,16 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
       }
       points.rotation.y = st.rotY;
 
-      composer.render();
+      if (composer) {
+        try {
+          composer.render();
+        } catch {
+          composer = null;
+          renderer.render(scene, camera);
+        }
+      } else {
+        renderer.render(scene, camera);
+      }
       st.raf = requestAnimationFrame(frame);
     }
 
@@ -344,7 +354,7 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
       camera.position.z = a < 1 ? 35 + (1 / a - 1) * 22 : 35;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      composer.setSize(w, h);
+      composer?.setSize(w, h);
     }
     window.addEventListener("resize", handleResize);
 
@@ -355,8 +365,8 @@ export default function HeartCanvas({ onExplode }: HeartCanvasProps) {
       scene.remove(points);
       geometry.dispose();
       material.dispose();
+      composer?.dispose();
       renderer.dispose();
-      composer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }

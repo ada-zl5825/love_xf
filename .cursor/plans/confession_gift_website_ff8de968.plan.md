@@ -22,7 +22,7 @@ todos:
     status: completed
   - id: heart-canvas-threejs
     content: Three.js 重写 HeartCanvas：GPU 加速 3D 粒子爱心（3000颗）+ 自定义 GLSL 着色器 + Bloom 辉光后处理
-    status: pending
+    status: completed
   - id: days-counter
     content: 实现 DaysCounter 组件：认识天数计算 + 数字滚动动画
     status: pending
