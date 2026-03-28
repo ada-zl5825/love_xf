@@ -10,7 +10,7 @@ interface EntryScreenProps {
 export default function EntryScreen({ onEnter }: EntryScreenProps) {
   return (
     <motion.section
-      className="fixed inset-0 z-10 flex flex-col items-center justify-center px-6"
+      className="fixed inset-0 z-20 flex flex-col items-center justify-center px-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}

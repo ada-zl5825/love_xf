@@ -11,6 +11,7 @@ import { daysBetween } from "@/lib/date";
 import { siteConfig } from "@/data/config";
 
 interface HeartCanvasProps {
+  started: boolean;
   onComplete: () => void;
 }
 
@@ -202,11 +203,13 @@ void main() {
 }
 `;
 
-export default function HeartCanvas({ onComplete }: HeartCanvasProps) {
+export default function HeartCanvas({ started, onComplete }: HeartCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const cbRef = useRef(onComplete);
   cbRef.current = onComplete;
+  const startedRef = useRef(false);
+  useEffect(() => { startedRef.current = started; }, [started]);
 
   const S = useRef({
     ps: [] as PState[],
@@ -348,11 +351,22 @@ export default function HeartCanvas({ onComplete }: HeartCanvasProps) {
     const points = new THREE.Points(geometry, material);
     scene.add(points);
 
-    st.t0 = performance.now();
-
     // --- Animation loop ---
     function frame() {
       const now = performance.now();
+
+      // Warm-up: render transparent scene to keep WebGL context alive
+      if (!startedRef.current) {
+        if (composer) {
+          try { composer.render(); } catch { composer = null; renderer.render(scene, camera); }
+        } else {
+          renderer.render(scene, camera);
+        }
+        st.raf = requestAnimationFrame(frame);
+        return;
+      }
+
+      if (st.t0 === 0) st.t0 = now;
       const elapsed = now - st.t0;
       const pos = posAttr.array as Float32Array;
       const op = opAttr.array as Float32Array;
@@ -614,12 +628,11 @@ export default function HeartCanvas({ onComplete }: HeartCanvasProps) {
   return (
     <motion.div
       ref={containerRef}
-      className="fixed inset-0 z-10 cursor-pointer"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      className={`fixed inset-0 z-10${started ? " cursor-pointer" : ""}`}
+      initial={false}
+      animate={{ opacity: started ? 1 : 0 }}
       transition={{ duration: 0.6 }}
-      onClick={handleClick}
+      onClick={started ? handleClick : undefined}
     >
       <div
         ref={labelRef}

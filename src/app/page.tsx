@@ -18,15 +18,20 @@ export default function Home() {
 
   return (
     <div className="relative min-h-dvh">
-      <AnimatePresence mode="wait">
+      {phase !== "story" && (
+        <HeartCanvas
+          started={phase === "heart"}
+          onComplete={() => setPhase("story")}
+        />
+      )}
+
+      <AnimatePresence>
         {phase === "intro" && (
           <EntryScreen key="intro" onEnter={() => setPhase("heart")} />
         )}
+      </AnimatePresence>
 
-        {phase === "heart" && (
-          <HeartCanvas key="heart" onComplete={() => setPhase("story")} />
-        )}
-
+      <AnimatePresence>
         {phase === "story" && (
           <StoryTimeline key="story">
             <LetterSection />
