@@ -51,11 +51,11 @@ const FADE_MS = 800;
 const TEXT_WORLD_WIDTH = 28;
 
 const PALETTE: [number, number, number][] = [
-  [183 / 255, 110 / 255, 121 / 255],
-  [232 / 255, 160 / 255, 180 / 255],
-  [240 / 255, 198 / 255, 212 / 255],
-  [245 / 255, 240 / 255, 235 / 255],
-  [210 / 255, 145 / 255, 160 / 255],
+  [220 / 255, 145 / 255, 155 / 255],
+  [240 / 255, 175 / 255, 195 / 255],
+  [245 / 255, 210 / 255, 222 / 255],
+  [250 / 255, 245 / 255, 242 / 255],
+  [230 / 255, 170 / 255, 185 / 255],
 ];
 
 function hx(t: number) {
@@ -306,8 +306,8 @@ export default function HeartCanvas({ started, onComplete }: HeartCanvasProps) {
           : 0.25 + Math.random() * 0.55,
         opacity: 0,
         maxOpacity: isEdge
-          ? 0.55 + Math.random() * 0.45
-          : 0.3 + Math.random() * 0.5,
+          ? 0.75 + Math.random() * 0.25
+          : 0.5 + Math.random() * 0.5,
         delay: Math.random() * 700,
         tx: 0,
         ty: 0,
@@ -381,14 +381,13 @@ export default function HeartCanvas({ started, onComplete }: HeartCanvasProps) {
           const driftY = Math.cos(elapsed * 0.001 + wSeed * 1.3) * 0.3;
           const driftZ = Math.sin(elapsed * 0.0009 + wSeed * 0.7) * 0.2;
           const tw =
-            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
+            0.94 + 0.06 * Math.sin(elapsed * 0.004 + p.delay * 3);
 
           const i3 = i * 3;
           pos[i3] = p.tx + driftX;
           pos[i3 + 1] = p.ty + driftY;
           pos[i3 + 2] = p.tz + driftZ;
-          op[i] =
-            p.maxOpacity * 0.85 * tw * (1 - easeOutCubic(fp));
+          op[i] = p.maxOpacity * tw * (1 - easeOutCubic(fp));
         }
         posAttr.needsUpdate = true;
         opAttr.needsUpdate = true;
@@ -426,9 +425,9 @@ export default function HeartCanvas({ started, onComplete }: HeartCanvasProps) {
             p.rz + (p.tz - p.rz) * e + driftZ * driftScale;
 
           const tw =
-            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
+            0.94 + 0.06 * Math.sin(elapsed * 0.004 + p.delay * 3);
           p.opacity =
-            p.maxOpacity * 0.85 * Math.min(1, prog / 0.3) * tw;
+            p.maxOpacity * Math.min(1, prog / 0.3) * tw;
 
           if (prog < 1) allDone = false;
 
@@ -544,7 +543,7 @@ export default function HeartCanvas({ started, onComplete }: HeartCanvasProps) {
           if (prog >= 1) assembled++;
 
           const tw =
-            0.92 + 0.08 * Math.sin(elapsed * 0.004 + p.delay * 3);
+            0.94 + 0.06 * Math.sin(elapsed * 0.004 + p.delay * 3);
           p.opacity *= tw;
 
           const i3 = i * 3;
