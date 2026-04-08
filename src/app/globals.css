@@ -57,19 +57,152 @@ body {
   50% { opacity: 0.8; transform: scale(1.15); }
 }
 
+/* ---- Envelope ---- */
+
+.envelope-box {
+  position: relative;
+  width: 280px;
+  height: 180px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  background-color: #5a3545;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  user-select: none;
+}
+
+.envelope-flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 140px solid transparent;
+  border-right: 140px solid transparent;
+  border-bottom: 82px solid transparent;
+  border-top: 98px solid #4d2d3d;
+  transform-origin: top;
+  pointer-events: none;
+}
+
+.envelope-pocket {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 140px solid #8a5060;
+  border-right: 140px solid #7a4555;
+  border-bottom: 90px solid #6b4050;
+  border-top: 90px solid transparent;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  z-index: 3;
+}
+
+.envelope-letter-card {
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  background-color: #fdf6ee;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.envelope-fake-lines {
+  padding: 15% 10%;
+}
+.envelope-fake-lines > div {
+  height: 5px;
+  background: #e8ddd0;
+  border-radius: 3px;
+  margin-bottom: 10px;
+}
+.envelope-fake-lines > div:last-child {
+  margin-bottom: 0;
+}
+
+.envelope-letter-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(253, 246, 238, 0) 25%,
+    rgba(253, 246, 238, 0.7) 55%,
+    rgba(253, 246, 238, 1) 100%
+  );
+}
+
+.envelope-hearts-wrap {
+  position: absolute;
+  top: 90px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.envelope-heart {
+  pointer-events: none;
+}
+.envelope-heart::before,
+.envelope-heart::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 160%;
+  background: #b76e79;
+  border-radius: 50% 50% 0 0;
+}
+.envelope-heart::before {
+  left: 50%;
+  transform: rotate(-45deg);
+  transform-origin: 0 100%;
+}
+.envelope-heart::after {
+  left: 0;
+  transform: rotate(45deg);
+  transform-origin: 100% 100%;
+}
+
+/* ---- Letter paper with baseline-aligned ruled lines ---- */
+
 .letter-paper {
-  background:
-    repeating-linear-gradient(
-      transparent,
-      transparent 2rem,
-      rgba(183, 110, 121, 0.03) 2rem,
-      rgba(183, 110, 121, 0.03) calc(2rem + 1px)
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(245, 240, 235, 0.04),
-      rgba(245, 240, 235, 0.02)
-    );
+  --letter-line-h: 2rem;
+  background-color: #fdf6ee;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.letter-ruled-area {
+  position: relative;
+  padding: calc(var(--letter-line-h) * 2) calc(var(--letter-line-h) * 1.2)
+    calc(var(--letter-line-h) * 1.5);
+  padding-left: max(calc(12% + 0.75rem), 2.5rem);
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent calc(var(--letter-line-h) - 1px),
+    rgba(170, 190, 220, 0.3) calc(var(--letter-line-h) - 1px),
+    rgba(170, 190, 220, 0.3) var(--letter-line-h)
+  );
+}
+
+.letter-ruled-area::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 12%;
+  width: 1px;
+  background: rgba(200, 80, 80, 0.22);
+}
+
+.letter-line {
+  line-height: var(--letter-line-h);
 }
 
 ::-webkit-scrollbar {

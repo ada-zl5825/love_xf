@@ -1,130 +1,221 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView, type Variants } from "framer-motion";
+import { useRef, useState, useCallback } from "react";
+import {
+  motion,
+  AnimatePresence,
+  useInView,
+  type Variants,
+} from "framer-motion";
 import { letterContent } from "@/data/letter";
 
-const containerVariants: Variants = {
+type LetterPhase = "closed" | "opening" | "reading";
+
+const ENV_H = 180;
+
+function FloatingHeart({
+  delay,
+  left,
+  size,
+}: {
+  delay: number;
+  left: string;
+  size: number;
+}) {
+  return (
+    <motion.div
+      className="envelope-heart"
+      style={{ position: "absolute", bottom: 0, left, width: size, height: size }}
+      initial={{ opacity: 1, y: 0 }}
+      animate={{
+        opacity: [1, 1, 1, 0],
+        y: -260,
+        x: [0, 18, -12, 22, -5],
+      }}
+      transition={{
+        duration: 3,
+        delay,
+        ease: "easeOut",
+        opacity: { duration: 3, delay, times: [0, 0.3, 0.7, 1] },
+        x: { duration: 3, delay, ease: "easeInOut" },
+      }}
+    />
+  );
+}
+
+const staggerContainer: Variants = {
   hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.4, delayChildren: 1.2 },
-  },
+  visible: { transition: { staggerChildren: 0.35, delayChildren: 0.5 } },
 };
 
-const paragraphVariants: Variants = {
-  hidden: { opacity: 0, y: 15 },
+const paragraphFade: Variants = {
+  hidden: { opacity: 0, y: 10 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.8, ease: "easeOut" },
+    transition: { duration: 0.7, ease: "easeOut" },
   },
 };
 
 export default function LetterSection() {
-  const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.15 });
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.25 });
+  const [phase, setPhase] = useState<LetterPhase>("closed");
 
-  const closingDelay =
-    1.2 + letterContent.paragraphs.length * 0.4 + 0.3;
+  const handleOpen = useCallback(() => {
+    if (phase !== "closed") return;
+    setPhase("opening");
+    setTimeout(() => setPhase("reading"), 2200);
+  }, [phase]);
+
+  const closingDelay = 0.5 + letterContent.paragraphs.length * 0.35 + 0.4;
 
   return (
     <section
-      ref={ref}
+      ref={sectionRef}
       className="relative flex min-h-dvh snap-start items-center justify-center px-6 py-16"
     >
-      <div className="w-full max-w-md">
-        {/* Envelope flap — 3D fold open */}
-        <div
-          className="relative h-12 w-full sm:h-14"
-          style={{ perspective: "600px" }}
-        >
+      <AnimatePresence mode="wait">
+        {phase !== "reading" ? (
           <motion.div
-            className="absolute inset-x-0 bottom-0 h-full origin-bottom"
-            style={{
-              background:
-                "linear-gradient(to top, rgba(183,110,121,0.12), rgba(183,110,121,0.03))",
-              clipPath: "polygon(0 100%, 50% 0%, 100% 100%)",
-              backfaceVisibility: "hidden",
-            }}
-            initial={{ rotateX: 180, opacity: 0 }}
-            animate={isInView ? { rotateX: 0, opacity: 1 } : {}}
-            transition={{
-              rotateX: {
-                duration: 1.4,
-                delay: 0.2,
-                ease: [0.22, 1, 0.36, 1],
-              },
-              opacity: { duration: 0.3, delay: 0.2 },
-            }}
-          />
-        </div>
-
-        {/* Letter paper */}
-        <motion.div
-          className="letter-paper relative overflow-hidden rounded-b-md border border-rose-gold/10 px-8 pb-10 pt-8 sm:px-12 sm:pb-14 sm:pt-10"
-          style={{ borderTopColor: "transparent" }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
-          {/* Greeting */}
-          <motion.h3
-            className="mb-8 text-center font-serif text-xl tracking-widest text-rose-gold/75 sm:mb-10"
-            initial={{ opacity: 0, y: 8 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 1.0 }}
+            key="envelope-phase"
+            className="flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={
+              isInView
+                ? { opacity: 1, scale: 1 }
+                : { opacity: 0, scale: 0.9 }
+            }
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
           >
-            {letterContent.greeting}
-          </motion.h3>
+            <div
+              className="envelope-box"
+              onClick={handleOpen}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+              aria-label="点击打开信封"
+            >
+              {/* Flap — rotateX 0 → 180 on open */}
+              <motion.div
+                className="envelope-flap"
+                style={{ zIndex: phase === "opening" ? 1 : 5 }}
+                animate={{ rotateX: phase === "opening" ? 180 : 0 }}
+                transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+              />
 
-          {/* Decorative divider */}
-          <motion.div
-            className="mx-auto mb-8 h-px w-12 sm:mb-10"
-            style={{
-              background:
-                "linear-gradient(to right, transparent, rgba(183,110,121,0.3), transparent)",
-            }}
-            initial={{ scaleX: 0 }}
-            animate={isInView ? { scaleX: 1 } : {}}
-            transition={{ duration: 0.6, delay: 1.1 }}
-          />
-
-          {/* Paragraphs — staggered fade-in */}
-          <motion.div
-            className="space-y-5 sm:space-y-6"
-            variants={containerVariants}
-            initial="hidden"
-            animate={isInView ? "visible" : "hidden"}
-          >
-            {letterContent.paragraphs.map((text, i) => (
-              <motion.p
-                key={i}
-                className="indent-[2em] font-serif text-sm leading-[2.2] text-warm-white/60 sm:text-base sm:leading-[2]"
-                variants={paragraphVariants}
+              {/* Mini letter card that slides up */}
+              <motion.div
+                className="envelope-letter-card"
+                style={{ zIndex: phase === "opening" ? 4 : 1 }}
+                animate={{ y: phase === "opening" ? -(ENV_H * 0.5) : 0 }}
+                transition={{
+                  duration: 0.6,
+                  delay: phase === "opening" ? 0.35 : 0,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
               >
-                {text}
-              </motion.p>
-            ))}
-          </motion.div>
+                <div className="envelope-fake-lines">
+                  {[30, 80, 70, 55].map((w, i) => (
+                    <div key={i} style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+                <div className="envelope-letter-fade" />
+              </motion.div>
 
-          {/* Closing & signature */}
-          <motion.div
-            className="mt-10 text-right sm:mt-12"
-            initial={{ opacity: 0, y: 8 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: closingDelay }}
-          >
-            <p className="font-serif text-sm tracking-wider text-warm-white/40 sm:text-base">
-              {letterContent.closing}
-            </p>
-            {letterContent.signature && (
-              <p className="mt-2 font-serif text-sm text-rose-gold/50 sm:text-base">
-                {letterContent.signature}
-              </p>
+              {/* Pocket (front V-shape) */}
+              <div className="envelope-pocket" />
+
+              {/* Floating hearts on open */}
+              {phase === "opening" && (
+                <div className="envelope-hearts-wrap">
+                  <FloatingHeart delay={0.5} left="18%" size={16} />
+                  <FloatingHeart delay={0.7} left="52%" size={22} />
+                  <FloatingHeart delay={0.6} left="72%" size={13} />
+                </div>
+              )}
+            </div>
+
+            {phase === "closed" && (
+              <motion.p
+                className="mt-6 cursor-pointer font-serif text-xs tracking-[0.25em] text-rose-gold/40"
+                initial={{ opacity: 0 }}
+                animate={isInView ? { opacity: 1 } : {}}
+                transition={{ delay: 1, duration: 0.8 }}
+                onClick={handleOpen}
+              >
+                点击信封
+              </motion.p>
             )}
           </motion.div>
-        </motion.div>
-      </div>
+        ) : (
+          <motion.div
+            key="letter-phase"
+            className="w-full max-w-lg"
+            initial={{ opacity: 0, y: 40, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="letter-paper">
+              <div className="letter-ruled-area">
+                <motion.h3
+                  className="letter-line text-center font-serif text-lg tracking-widest"
+                  style={{
+                    color: "#6b4050",
+                    marginBottom: "var(--letter-line-h)",
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                >
+                  {letterContent.greeting}
+                </motion.h3>
+
+                <motion.div
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {letterContent.paragraphs.map((text, i) => (
+                    <motion.p
+                      key={i}
+                      className="letter-line indent-[2em] font-serif text-sm sm:text-base"
+                      style={{ color: "#3a3535" }}
+                      variants={paragraphFade}
+                    >
+                      {text}
+                    </motion.p>
+                  ))}
+                </motion.div>
+
+                <motion.div
+                  className="letter-line text-right"
+                  style={{
+                    marginTop: "var(--letter-line-h)",
+                    color: "#6b4050",
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: closingDelay }}
+                >
+                  <p className="font-serif text-sm tracking-wider sm:text-base">
+                    {letterContent.closing}
+                  </p>
+                  {letterContent.signature && (
+                    <p
+                      className="font-serif text-sm sm:text-base"
+                      style={{ color: "#8a5060" }}
+                    >
+                      {letterContent.signature}
+                    </p>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
