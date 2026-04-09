@@ -9,8 +9,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "属于我们的故事",
-  description: "打开属于我们的故事",
+  title: "LZF和XF的故事",
+  description: "打开属于LZF和XF的故事",
 };
 
 export const viewport: Viewport = {
