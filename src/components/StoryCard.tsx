@@ -23,11 +23,12 @@ export default function StoryCard({ node, index, total }: StoryCardProps) {
   return (
     <section
       ref={ref}
-      className="relative flex h-dvh snap-start snap-always flex-col items-center justify-center px-8"
+      className="relative flex h-dvh snap-start snap-always flex-col items-center px-8 pt-[env(safe-area-inset-top,0px)]"
     >
-      <div className="flex flex-col items-center">
+      {/* Text area — compact at top */}
+      <div className="flex shrink-0 flex-col items-center pt-9 sm:pt-16">
         <motion.span
-          className="mb-8 font-sans text-[10px] tracking-[0.3em] text-rose-gold/25"
+          className="mb-3 font-sans text-[10px] tracking-[0.3em] text-rose-gold/25"
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ duration: 0.6, delay: 0.1 }}
@@ -37,7 +38,7 @@ export default function StoryCard({ node, index, total }: StoryCardProps) {
 
         {node.date && (
           <motion.time
-            className="mb-4 font-sans text-xs tracking-[0.2em] text-rose-gold/45"
+            className="mb-2 font-sans text-xs tracking-[0.2em] text-rose-gold/45"
             initial={{ opacity: 0, y: 8 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -47,7 +48,7 @@ export default function StoryCard({ node, index, total }: StoryCardProps) {
         )}
 
         <motion.h2
-          className="mb-5 text-center font-serif text-2xl leading-snug tracking-wide text-warm-white sm:text-3xl"
+          className="mb-3 text-center font-serif text-2xl leading-snug tracking-wide text-warm-white sm:text-3xl"
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.9, delay: 0.3, ease }}
@@ -56,7 +57,7 @@ export default function StoryCard({ node, index, total }: StoryCardProps) {
         </motion.h2>
 
         <motion.div
-          className="mb-6 h-px w-10"
+          className="mb-3 h-px w-10"
           style={{
             background:
               "linear-gradient(to right, transparent, rgba(183,110,121,0.4), transparent)",
@@ -67,30 +68,31 @@ export default function StoryCard({ node, index, total }: StoryCardProps) {
         />
 
         <motion.p
-          className="max-w-xs text-center font-serif text-base leading-[1.9] text-warm-white/55 sm:max-w-sm sm:text-lg sm:leading-[2]"
+          className="max-w-xs text-center font-serif text-sm leading-[1.8] text-warm-white/55 sm:max-w-sm sm:text-base sm:leading-[1.9]"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.9, delay: 0.5, ease }}
         >
           {node.description}
         </motion.p>
-
-        {node.image && (
-          <motion.div
-            className="mt-8 max-w-sm overflow-hidden rounded-lg"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.8, delay: 0.6 }}
-          >
-            <img
-              src={node.image}
-              alt={node.title}
-              className="h-auto w-full object-cover"
-              loading="lazy"
-            />
-          </motion.div>
-        )}
       </div>
+
+      {/* Image — fills remaining space */}
+      {node.image && (
+        <motion.div
+          className="mt-4 min-h-0 w-full max-w-sm flex-1 overflow-hidden rounded-lg pb-10 sm:max-w-md"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={isInView ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 0.8, delay: 0.6 }}
+        >
+          <img
+            src={node.image}
+            alt={node.title}
+            className="h-full w-full rounded-lg object-cover"
+            loading="lazy"
+          />
+        </motion.div>
+      )}
 
       {index === 0 && (
         <motion.div
