@@ -113,7 +113,7 @@ export default function TogetherPage() {
         animate={{ opacity: 1 }}
         transition={{ duration: 1, delay: 1.4 }}
       >
-        since {siteConfig.metDate}
+        since {acceptedAt.slice(0, 10)}
       </motion.p>
     </main>
   );
