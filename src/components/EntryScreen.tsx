@@ -22,7 +22,7 @@ export default function EntryScreen({ onEnter }: EntryScreenProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.8 }}
       >
-        For You
+        For XF
       </motion.p>
 
       <motion.h1
