@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 const ACCEPTED_AT_KEY = "love_xf_accepted_at";
 
 export interface StorageProvider {
@@ -23,11 +25,52 @@ class LocalStorageProvider implements StorageProvider {
   }
 }
 
-// Future implementation — swap the export below to use Supabase instead.
-// class SupabaseProvider implements StorageProvider {
-//   async getAcceptedAt() { /* fetch from supabase */ }
-//   async setAcceptedAt(timestamp: string) { /* upsert to supabase */ }
-//   async clearAcceptedAt() { /* delete from supabase */ }
-// }
+const local = new LocalStorageProvider();
 
-export const storage: StorageProvider = new LocalStorageProvider();
+class SupabaseProvider implements StorageProvider {
+  async getAcceptedAt(): Promise<string | null> {
+    const cached = await local.getAcceptedAt();
+    if (cached) return cached;
+
+    try {
+      const { data } = await supabase
+        .from("accepted")
+        .select("accepted_at")
+        .eq("id", 1)
+        .single();
+
+      if (data?.accepted_at) {
+        const ts = data.accepted_at as string;
+        await local.setAcceptedAt(ts);
+        return ts;
+      }
+    } catch {
+      // offline or table empty — fall through
+    }
+    return null;
+  }
+
+  async setAcceptedAt(timestamp: string): Promise<void> {
+    await local.setAcceptedAt(timestamp);
+
+    try {
+      await supabase
+        .from("accepted")
+        .upsert({ id: 1, accepted_at: timestamp }, { onConflict: "id" });
+    } catch {
+      // offline — local cache is already set
+    }
+  }
+
+  async clearAcceptedAt(): Promise<void> {
+    await local.clearAcceptedAt();
+
+    try {
+      await supabase.from("accepted").delete().eq("id", 1);
+    } catch {
+      // offline
+    }
+  }
+}
+
+export const storage: StorageProvider = new SupabaseProvider();
