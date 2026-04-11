@@ -115,6 +115,26 @@ export default function TogetherPage() {
       >
         since {acceptedAt.slice(0, 10)}
       </motion.p>
+
+      {/* Message wall entry */}
+      <motion.button
+        onClick={() => router.push("/messages")}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 1.8 }}
+        className="mt-10 flex items-center gap-2 rounded-full border border-rose-gold/15 bg-rose-gold/5 px-5 py-2 text-xs tracking-[0.15em] text-rose-gold/45 backdrop-blur-sm transition-all hover:border-rose-gold/25 hover:bg-rose-gold/10 hover:text-rose-gold/65"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        隐秘的角落
+      </motion.button>
     </main>
   );
 }
