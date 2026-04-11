@@ -25,3 +25,11 @@ export interface SiteConfig {
   togetherTitle: string;
   togetherSubtitle: string;
 }
+
+export interface Message {
+  id: number;
+  author: string;
+  content: string;
+  color: number;
+  created_at: string;
+}
