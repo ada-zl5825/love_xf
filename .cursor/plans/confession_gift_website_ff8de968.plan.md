@@ -43,10 +43,10 @@ todos:
     status: completed
   - id: main-page
     content: 组装主页 page.tsx：acceptedAt 检测逻辑（已有 acceptedAt 跳转 /together，无 acceptedAt 进入 intro）
-    status: pending
+    status: completed
   - id: polish
     content: 整体调优：动画节奏、移动端适配、性能优化、Safari 兼容性测试
-    status: pending
+    status: completed
 isProject: false
 ---
 

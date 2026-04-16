@@ -122,7 +122,7 @@ export default function TogetherPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 1.8 }}
-        className="mt-10 flex items-center gap-2 rounded-full border border-rose-gold/15 bg-rose-gold/5 px-5 py-2 text-xs tracking-[0.15em] text-rose-gold/45 backdrop-blur-sm transition-all hover:border-rose-gold/25 hover:bg-rose-gold/10 hover:text-rose-gold/65"
+        className="mt-10 flex w-56 items-center justify-center gap-2 rounded-full border border-rose-gold/15 bg-rose-gold/5 px-5 py-2 text-xs tracking-[0.15em] text-rose-gold/45 backdrop-blur-sm transition-all hover:border-rose-gold/25 hover:bg-rose-gold/10 hover:text-rose-gold/65"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path
@@ -134,6 +134,33 @@ export default function TogetherPage() {
           />
         </svg>
         隐秘的角落
+      </motion.button>
+
+      {/* For-you page entry */}
+      <motion.button
+        onClick={() => router.push("/for-you")}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 2.1 }}
+        className="mt-4 flex w-56 items-center justify-center gap-2 rounded-full border border-amber-200/15 bg-amber-100/5 px-5 py-2 text-xs tracking-[0.15em] text-amber-200/45 backdrop-blur-sm transition-all hover:border-amber-200/25 hover:bg-amber-100/10 hover:text-amber-200/65"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M22 6l-10 7L2 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        还有一页，只写给你
       </motion.button>
     </main>
   );
