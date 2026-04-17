@@ -31,8 +31,8 @@ function NoteCard({ msg, index }: { msg: Message; index: number }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ delay: index * 0.06, duration: 0.45 }}
-      className="group relative break-inside-avoid"
-      style={{ rotate: `${rotation}deg` }}
+      className="group relative break-inside-avoid p-1"
+      style={{ transform: `rotate(${rotation}deg)` }}
     >
       <div
         className="relative rounded-lg p-4 backdrop-blur-sm transition-transform duration-300 group-hover:scale-[1.02]"
@@ -120,7 +120,7 @@ export default function MessageWall() {
           </p>
         </motion.div>
       ) : (
-        <div className="columns-2 gap-3 space-y-3">
+        <div className="columns-2 gap-3 space-y-3 overflow-visible">
           <AnimatePresence mode="popLayout">
             {messages.map((msg, i) => (
               <NoteCard key={msg.id} msg={msg} index={i} />
