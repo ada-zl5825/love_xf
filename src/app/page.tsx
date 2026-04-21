@@ -10,6 +10,7 @@ import StoryTimeline from "@/components/StoryTimeline";
 import LetterSection from "@/components/LetterSection";
 import ProposalSection from "@/components/ProposalSection";
 import TogetherEntry from "@/components/TogetherEntry";
+import { useMusic } from "@/components/MusicProvider";
 
 const HeartCanvas = dynamic(() => import("@/components/HeartCanvas"), {
   ssr: false,
@@ -18,12 +19,20 @@ const HeartCanvas = dynamic(() => import("@/components/HeartCanvas"), {
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [hasAccepted, setHasAccepted] = useState(false);
+  const { play } = useMusic();
 
   useEffect(() => {
     storage.getAcceptedAt().then((ts) => {
       if (ts) setHasAccepted(true);
     });
   }, []);
+
+  const handleEnter = () => {
+    // Kick off background music on the first user gesture; browsers
+    // block autoplay until the user has interacted with the page.
+    void play();
+    setPhase("heart");
+  };
 
   return (
     <div className="relative min-h-dvh">
@@ -36,7 +45,7 @@ export default function Home() {
 
       <AnimatePresence>
         {phase === "intro" && (
-          <EntryScreen key="intro" onEnter={() => setPhase("heart")} />
+          <EntryScreen key="intro" onEnter={handleEnter} />
         )}
       </AnimatePresence>
 

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import Background from "@/components/Background";
+import { MusicProvider } from "@/components/MusicProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,7 +38,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh antialiased">
         <Background />
-        {children}
+        <MusicProvider>{children}</MusicProvider>
       </body>
     </html>
   );
